@@ -3,7 +3,11 @@ package com.example.cadevoce;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -27,7 +31,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -115,7 +122,7 @@ public class Tela_Principal extends AppCompatActivity implements OnMapReadyCallb
                                         for (int i = 0; i < grupos.length(); i++) {
                                             JSONObject grupo = grupos.getJSONObject(i);
                                             JSONArray participantes = grupo.getJSONArray(grupo.names().getString(0));
-                                            for(int j=0; j<participantes.length();j++){
+                                            for (int j = 0; j < participantes.length(); j++) {
                                                 JSONObject participante = participantes.getJSONObject(j);
                                                 String nome = participante.getString("nome");
                                                 String email_participante = participante.getString("email");
@@ -124,28 +131,32 @@ public class Tela_Principal extends AppCompatActivity implements OnMapReadyCallb
                                                 double longitude = localizacao.getDouble("lon");
                                                 Usuario oCaraTaLa = null;
                                                 boolean ehTuMan = email_participante.equals(email);
-                                                for(int k=0; k<usuarios.size(); k++){
-                                                    if(usuarios.get(k).email.equals(email_participante)){
+                                                for (int k = 0; k < usuarios.size(); k++) {
+                                                    if (usuarios.get(k).email.equals(email_participante)) {
                                                         oCaraTaLa = usuarios.get(k);
                                                     }
                                                 }
-                                                if(oCaraTaLa!=null){
+                                                if (oCaraTaLa != null) {
                                                     oCaraTaLa.marcador.setPosition(new LatLng(latitude, longitude));
-                                                    if(ehTuMan){
-                                                        oCaraTaLa.marcador.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.location2));
+                                                    if (ehTuMan) {
+                                                        oCaraTaLa.marcador.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker1)));
+                                                    } else {
+                                                        oCaraTaLa.marcador.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker2)));
                                                     }
-                                                }else{
+                                                } else {
                                                     Marker marker = mMap.addMarker(new MarkerOptions().position(new LatLng(latitude, longitude)).title(nome));
-                                                    Usuario usuario = new Usuario(marker,email_participante,nome);
+                                                    Usuario usuario = new Usuario(marker, email_participante, nome);
                                                     usuarios.add(usuario);
-                                                    if(ehTuMan){
-                                                        marker.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.images));
+                                                    if (ehTuMan) {
+                                                        marker.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker1)));
+                                                    } else {
+                                                        marker.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker2)));
                                                     }
                                                 }
                                             }
                                         }
-                                    }catch (JSONException e){
-
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
                                     }
                                 }
                             });
@@ -166,11 +177,66 @@ public class Tela_Principal extends AppCompatActivity implements OnMapReadyCallb
 
                         }
                     });
+
+            Servidor.Sync_data(email, String.valueOf(0), String.valueOf(0), context, new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    try {
+                        JSONArray grupos = response.getJSONArray("grupos");
+                        for (int i = 0; i < grupos.length(); i++) {
+                            JSONObject grupo = grupos.getJSONObject(i);
+                            JSONArray participantes = grupo.getJSONArray(grupo.names().getString(0));
+                            for (int j = 0; j < participantes.length(); j++) {
+                                JSONObject participante = participantes.getJSONObject(j);
+                                String nome = participante.getString("nome");
+                                String email_participante = participante.getString("email");
+                                JSONObject localizacao = participante.getJSONObject("localizacao");
+                                double latitude = localizacao.getDouble("lat");
+                                double longitude = localizacao.getDouble("lon");
+                                Usuario oCaraTaLa = null;
+                                boolean ehTuMan = email_participante.equals(email);
+                                for (int k = 0; k < usuarios.size(); k++) {
+                                    if (usuarios.get(k).email.equals(email_participante)) {
+                                        oCaraTaLa = usuarios.get(k);
+                                    }
+                                }
+                                if (oCaraTaLa != null) {
+                                    oCaraTaLa.marcador.setPosition(new LatLng(latitude, longitude));
+                                    if (ehTuMan) {
+                                        oCaraTaLa.marcador.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker1)));
+                                    } else {
+                                        oCaraTaLa.marcador.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker2)));
+                                    }
+                                } else {
+                                    if (!ehTuMan) {
+                                        Marker marker = mMap.addMarker(new MarkerOptions().position(new LatLng(latitude, longitude)).title(nome));
+                                        Usuario usuario = new Usuario(marker, email_participante, nome);
+                                        usuarios.add(usuario);
+                                        marker.setIcon(BitmapDescriptorFactory.fromBitmap(getBitmap(R.drawable.marker1)));
+                                    }
+                                }
+                            }
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
         } catch (SecurityException e) {
             e.printStackTrace();
         }
     }
 
+    private Bitmap getBitmap(int drawableRes) {
+        Drawable drawable = getResources().getDrawable(drawableRes);
+        Canvas canvas = new Canvas();
+        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        canvas.setBitmap(bitmap);
+        drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -184,12 +250,12 @@ public class Tela_Principal extends AppCompatActivity implements OnMapReadyCallb
         }
     }
 
-    class Usuario{
+    class Usuario {
         Marker marcador;
         String email;
         String nome;
 
-        public Usuario(Marker marcador, String email, String nome){
+        public Usuario(Marker marcador, String email, String nome) {
             this.marcador = marcador;
             this.email = email;
             this.nome = nome;
